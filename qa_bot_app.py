@@ -1,24 +1,5 @@
 #!/usr/bin/env python3
-"""
-QA Bot Web App (RAG with LangChain + IBM watsonx + Chroma + Gradio)
 
-This script implements the full project described in your PDF:
-
-1) document_loader()  -> PyPDFLoader                      [screenshot: pdf_loader.png]
-2) text_splitter()    -> RecursiveCharacterTextSplitter   [screenshot: code_splitter.png]
-3) watsonx_embedding()-> WatsonxEmbeddings                [screenshot: embedding.png]
-4) vector_database()  -> Chroma.from_documents            [screenshot: vectordb.png]
-5) retriever(file)    -> builds a Chroma retriever        [screenshot: retriever.png]
-6) retriever_qa(file, query) + Gradio UI                  [screenshot: QA_bot.png]
-
-Before running, set these environment variables for IBM watsonx.ai:
-  export WATSONX_APIKEY="YOUR_API_KEY"
-  export WATSONX_URL="https://us-south.ml.cloud.ibm.com"           # or your region endpoint
-  export WATSONX_PROJECT_ID="YOUR_WATSONX_PROJECT_ID"
-  # (optional overrides)
-  export WATSONX_LLM_MODEL_ID="ibm/granite-13b-chat-v2"
-  export WATSONX_EMBED_MODEL_ID="ibm/slate.30m.english.rtrvr"      # adjust to a valid embed model ID in your account
-"""
 import os
 import pathlib
 from functools import lru_cache
@@ -42,9 +23,7 @@ except Exception:
 import gradio as gr
 
 
-# =====================
 # Configuration Helpers
-# =====================
 
 def _require_env(name: str) -> str:
     val = os.getenv(name)
@@ -63,10 +42,8 @@ def get_embed_model_id() -> str:
 def get_llm_model_id() -> str:
     return os.getenv("WATSONX_LLM_MODEL_ID", "ibm/granite-13b-chat-v2")
 
+#Load PDF Documents
 
-# ===========================
-# 1) Load PDF Documents
-# ===========================
 def document_loader(file_path: Union[str, os.PathLike]):
     """
     Load a PDF into LangChain Documents using PyPDFLoader.
@@ -78,10 +55,8 @@ def document_loader(file_path: Union[str, os.PathLike]):
     docs = loader.load()
     return docs
 
+# Split Long Documents into Text Chunks
 
-# ==========================================
-# 2) Split Long Documents into Text Chunks
-# ==========================================
 def text_splitter(docs: List, chunk_size: int = 1000, chunk_overlap: int = 200):
     """
     Split documents into manageable chunks using RecursiveCharacterTextSplitter.
@@ -96,10 +71,8 @@ def text_splitter(docs: List, chunk_size: int = 1000, chunk_overlap: int = 200):
     chunks = splitter.split_documents(docs)
     return chunks
 
+# IBM watsonx Embeddings
 
-# ===================================
-# 3) IBM watsonx Embeddings (Vectors)
-# ===================================
 def watsonx_embedding() -> WatsonxEmbeddings:
     """
     Instantiate WatsonxEmbeddings from langchain_ibm.
@@ -118,10 +91,8 @@ def watsonx_embedding() -> WatsonxEmbeddings:
         project_id=project_id,
     )
 
+# Build Chroma Vector Database
 
-# ============================================
-# 4) Build / Populate Chroma Vector Database
-# ============================================
 def vector_database(chunks: List, persist_directory: Union[str, os.PathLike, None] = None):
     """
     Embed chunks using watsonx_embedding() and store in Chroma.
@@ -144,11 +115,9 @@ def vector_database(chunks: List, persist_directory: Union[str, os.PathLike, Non
         vectordb.persist()
 
     return vectordb
+  
+# LLM helper
 
-
-# =======================
-# LLM (watsonx.ai) helper
-# =======================
 @lru_cache(maxsize=1)
 def get_llm() -> WatsonxLLM:
     """
@@ -178,10 +147,8 @@ def get_llm() -> WatsonxLLM:
         params=params,
     )
 
+# Build a Retriever
 
-# =====================
-# 5) Build a Retriever
-# =====================
 def retriever(file_path: Union[str, os.PathLike], persist_dir: Union[str, os.PathLike, None] = None):
     """
     Load, split, embed, and convert to a Chroma retriever.
@@ -194,10 +161,8 @@ def retriever(file_path: Union[str, os.PathLike], persist_dir: Union[str, os.Pat
     retr = vectordb.as_retriever(search_type="similarity", search_kwargs={"k": 4})
     return retr
 
+# Retrieval-QA over the PDF + Gradio front-end
 
-# ======================================================
-# 6) Retrieval-QA over the PDF + Gradio front-end
-# ======================================================
 def retriever_qa(file_path: Union[str, os.PathLike], query: str) -> str:
     """
     Use RetrievalQA chain with watsonx LLM + Chroma retriever to answer a question.
@@ -227,10 +192,8 @@ def retriever_qa(file_path: Union[str, os.PathLike], query: str) -> str:
 
     return answer
 
+# Gradio App
 
-# ==============
-# 7) Gradio App
-# ==============
 def build_ui():
     with gr.Blocks(title="QA Bot Web App (LangChain + watsonx + Chroma)") as demo:
         gr.Markdown(
